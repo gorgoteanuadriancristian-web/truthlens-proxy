@@ -1,47 +1,49 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+import express from "express";
+import cors from "cors";
+import axios from "axios";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_KEY) {
-  console.warn('⚠️ Lipsă GEMINI_API_KEY în environment!');
-}
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
 
-app.post('/verify-text', async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'Lipsește textul' });
-
+app.post("/verify-text", async (req, res) => {
   try {
+    const { text } = req.body;
+
     const response = await axios.post(
-   `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      "https://api.deepseek.com/v1/chat/completions",
       {
-        contents: [
+        model: "deepseek-chat",
+        messages: [
           {
-            parts: [
-              {
-                text: `Ești un verificator de fapte. Spune clar dacă textul următor este adevărat, fals sau incert, și oferă o explicație scurtă: "${text}"`
-              }
-            ]
-          }
-        ]
+            role: "system",
+            content:
+              "Ești un asistent care verifică veridicitatea afirmațiilor. Răspunde concis, în limba română.",
+          },
+          {
+            role: "user",
+            content: `Verifică dacă afirmația următoare este adevărată sau falsă: ${text}`,
+          },
+        ],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${DEEPSEEK_KEY}`,
+        },
       }
     );
 
-    const answer =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'Niciun răspuns de la AI.';
-
-    res.json({ verdict: answer });
+    res.json({ verdict: response.data.choices[0].message.content });
   } catch (err) {
-    console.error('Eroare la Gemini:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Eroare la Gemini', details: err.message });
+    console.error("Eroare DeepSeek:", err.response?.data || err.message);
+    res.status(500).json({
+      error: "Eroare la DeepSeek",
+      details: err.response?.data || err.message,
+    });
   }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`✅ Server Gemini pornit pe portul ${port}`));
+app.listen(10000, () => console.log("Serverul rulează pe portul 10000"));
